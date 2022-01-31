@@ -12,6 +12,7 @@ from starlette_context.middleware import RawContextMiddleware
 
 from api.db.errors import DoesNotExist, AlreadyExists
 from api.endpoints.routes.api import api_router
+from api.endpoints.routes.webhooks import get_webhookapp
 from api.tenant_security import (
     TenantToken,
     authenticate_tenant,
@@ -45,6 +46,8 @@ def get_application() -> FastAPI:
 
 
 app = get_application()
+webhook_app = get_webhookapp()
+app.mount("/webhook", webhook_app)
 
 
 @app.exception_handler(DoesNotExist)
@@ -65,7 +68,7 @@ async def already_exists_exception_handler(request: Request, exc: AlreadyExists)
 
 @app.get("/", tags=["liveness"])
 def main():
-    return {"status": "ok"}
+    return {"status": "ok", "health": "ok"}
 
 
 @app.post("/token", response_model=TenantToken)
@@ -86,5 +89,5 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
 
 
 if __name__ == "__main__":
-    print("main.....")
+    print("main.")
     uvicorn.run(app, host="0.0.0.0", port=8080)
