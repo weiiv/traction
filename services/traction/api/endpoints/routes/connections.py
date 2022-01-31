@@ -1,14 +1,10 @@
 from enum import Enum
 from typing import Optional
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from api import acapy_utils as au
-from api.tenant_security import (
-    oauth2_scheme,
-)
-
 
 router = APIRouter()
 
@@ -80,8 +76,6 @@ async def get_connections(
     connection_state: Optional[ConnectionStateType] = None,
     their_did: Optional[str] = None,
     their_role: Optional[ConnectionRoleType] = None,
-    # note we don't need the token here but we need to make sure it gets set
-    _token: str = Depends(oauth2_scheme),
 ):
     params = {
         "alias": alias,
@@ -96,16 +90,48 @@ async def get_connections(
     return connections["results"]
 
 
+async def get_connection_with_alias(alias: str):
+    params = {
+        "alias": alias,
+    }
+    connections = await au.acapy_GET("connections", params=params)
+    if 0 == len(connections["results"]):
+        return None
+    if 1 < len(connections["results"]):
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error multiple connections found with alias {alias}",
+        )
+    return connections["results"][0]
+
+
 @router.post("/create-invitation", response_model=Invitation)
 async def create_invitation(
     alias: str | None = None,
-    # note we don't need the token here but we need to make sure it gets set
-    _token: str = Depends(oauth2_scheme),
+    invitation_type: ConnectionProtocolType = ConnectionProtocolType.DIDExchange,
 ):
-    params = {"alias": alias}
-    invitation = await au.acapy_POST(
-        "connections/create-invitation", data={}, params=params
-    )
+    existing_connection = await get_connection_with_alias(alias)
+    if existing_connection:
+        raise HTTPException(
+            status_code=500, detail=f"Error alias {alias} already in use"
+        )
+    if invitation_type == ConnectionProtocolType.DIDExchange:
+        data = {
+            "alias": alias,
+            "handshake_protocols": [
+                "did:sov:BzCbsNYhMrjHiqZDTUASHg;spec/didexchange/1.0",
+            ],
+        }
+        invitation = await au.acapy_POST(
+            "out-of-band/create-invitation", data=data, params=None
+        )
+        connection = await get_connection_with_alias(alias)
+        invitation["connection_id"] = connection["connection_id"]
+    else:
+        params = {"alias": alias}
+        invitation = await au.acapy_POST(
+            "connections/create-invitation", data={}, params=params
+        )
     return invitation
 
 
@@ -113,13 +139,22 @@ async def create_invitation(
 async def receive_invitation(
     payload: dict,
     alias: str | None = None,
-    # note we don't need the token here but we need to make sure it gets set
-    _token: str = Depends(oauth2_scheme),
 ):
-    params = {"alias": alias}
-    connection = await au.acapy_POST(
-        "connections/receive-invitation", data=payload, params=params
-    )
+    existing_connection = await get_connection_with_alias(alias)
+    if existing_connection:
+        raise HTTPException(
+            status_code=500, detail=f"Error alias {alias} already in use"
+        )
+    if "/out-of-band/" in payload.get("@type", ""):
+        params = {"alias": alias}
+        connection = await au.acapy_POST(
+            "out-of-band/receive-invitation", data=payload, params=params
+        )
+    else:
+        params = {"alias": alias}
+        connection = await au.acapy_POST(
+            "connections/receive-invitation", data=payload, params=params
+        )
     return connection
 
 
@@ -128,13 +163,14 @@ async def send_message(
     payload: BasicMessage,
     connection_id: str | None = None,
     alias: str | None = None,
-    # note we don't need the token here but we need to make sure it gets set
-    _token: str = Depends(oauth2_scheme),
 ):
     if not connection_id:
-        lookup_params = {"alias": alias}
-        connections = await au.acapy_GET("connections", params=lookup_params)
-        connection_id = connections["results"][0]["connection_id"]
+        existing_connection = await get_connection_with_alias(alias)
+        if not existing_connection:
+            raise HTTPException(
+                status_code=404, detail=f"Error alias {alias} does not exist"
+            )
+        connection_id = existing_connection["connection_id"]
     message = {"content": payload.content}
     response = await au.acapy_POST(
         f"connections/{connection_id}/send-message", data=message
