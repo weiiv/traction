@@ -3,7 +3,7 @@ import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi.testclient import TestClient
 
-from api.main import app
+from api.main import app, innkeeper_app
 from api.db.session import engine
 from api.endpoints.dependencies.db import get_db
 from sqlalchemy.orm import sessionmaker
@@ -54,8 +54,6 @@ async def session():
     #     nonlocal nested
     #     if not nested.is_active:
     #         nested = connection.begin_nested()
-    print("session fixture")
-    print(session)
     yield session
 
     # Rollback the overall transaction, restoring the state before the test ran.
@@ -70,18 +68,10 @@ async def session():
 # session fixture.
 @pytest_asyncio.fixture()
 async def client(session):
-    print("client fixture")
-    print(session)
-
     def override_get_db():
-        print("override session")
         yield session
 
-    test_app = TestClient(app)
-    app.dependency_overrides[get_db] = override_get_db
-    print("run_override")
-    print(app.dependency_overrides[get_db])
-    print("yeilded client")
-    print(test_app)
+    test_app = TestClient(innkeeper_app, backend="asyncio")
+    innkeeper_app.dependency_overrides[get_db] = override_get_db
+
     yield test_app
-    del app.dependency_overrides[get_db]

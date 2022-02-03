@@ -34,8 +34,6 @@ async def check_in_tenant(
 @router.get("/tenants", status_code=status.HTTP_200_OK, response_model=List[TenantRead])
 async def get_tenants(db: AsyncSession = Depends(get_db)) -> List[TenantRead]:
     # this should take some query params, sorting and paging params...
-    print("resource async session")
-    print(db)
     repo = TenantsRepository(db_session=db)
     items = await repo.find()
     return items
