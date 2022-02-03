@@ -1,29 +1,39 @@
+import asyncio
 import pytest
 import json
 import pprint
+
+
 from tests.db.tenant_factory import TenantFactory
 from api.db.repositories.tenants import TenantsRepository
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi.testclient import TestClient
 
+from fastapi import APIRouter, Depends
+from api.endpoints.dependencies.db import get_db
+
 
 pp = pprint.PrettyPrinter()
 
 
-@pytest.mark.asyncio
-async def test_tenants_get_all(client: TestClient, test_session: AsyncSession) -> None:
-    _repo = TenantsRepository(test_session)
+def test_tenants_get_all(
+    client: TestClient, session: AsyncSession, db=Depends(get_db)
+) -> None:
+    print("test client")
+    print(client)
+    print("test session")
+    print(session)
+
+    _repo = TenantsRepository(session)
+
     test_tenant = TenantFactory.build()
-    test_session.add(test_tenant)
-    await test_session.commit()
-    pp.pprint(await _repo.find())
-    resp = client.get("/v1/innkeeper/tenants")
+    session.add(test_tenant)
+    # pp.pprint(_repo.find())
+    print(client)
+    pp.pprint(client.app.__dict__)
+    resp = client.get("/innkeeper/v1/tenants")
 
     assert resp.ok
     resp_content = json.loads(resp.content)
-
-    pp.pprint(resp_content)
-    pp.pprint(client.__dict__)
-    pp.pprint(test_session.__dict__)
 
     assert len(resp_content) == 1

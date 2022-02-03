@@ -24,7 +24,7 @@ def get_innkeeperapp() -> FastAPI:
         title=s.INNKEEPER_TITLE,
         description=s.INNKEEPER_DESCRIPTION,
         debug=s.DEBUG,
-        middleware=middleware,
+        # middleware=middleware,
     )
     # mount the token endpoint
     application.include_router(router, prefix="")
@@ -32,7 +32,7 @@ def get_innkeeperapp() -> FastAPI:
     application.include_router(
         innkeeper_router,
         prefix=s.API_V1_STR,
-        dependencies=[Depends(OAuth2PasswordBearer(tokenUrl="token"))],
+        # dependencies=[Depends(OAuth2PasswordBearer(tokenUrl="token"))],
         tags=["innkeeper"],
     )
     return application
