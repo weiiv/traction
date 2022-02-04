@@ -1,4 +1,6 @@
 import pytest_asyncio
+import asyncio
+import anyio
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi.testclient import TestClient
@@ -8,7 +10,9 @@ from api.db.session import engine
 from api.endpoints.dependencies.db import get_db
 from sqlalchemy.orm import sessionmaker
 
-TestingSessionLocal = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+TestingSessionLocal = sessionmaker(
+    engine, class_=AsyncSession, expire_on_commit=False, autoflush=False
+)
 
 
 """
@@ -73,5 +77,23 @@ async def client(session):
 
     test_app = TestClient(innkeeper_app, backend="asyncio")
     innkeeper_app.dependency_overrides[get_db] = override_get_db
-
+    print(anyio.get_current_task())
+    print(hex(id(asyncio.get_running_loop())))
     yield test_app
+
+
+# @pytest_asyncio.fixture()
+# async def client(session):
+#     def override_get_db():
+#         yield session
+
+#     innkeeper_app.dependency_overrides[get_db] = override_get_db
+
+#     async with AsyncClient(app=innkeeper_app, base_url="http://testserver") as client:
+#         yield client
+
+
+# @pytest_asyncio.fixture(scope="module")
+# async def event_loop():
+#     loop = asyncio.get_event_loop()
+#     yield loop

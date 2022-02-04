@@ -1,4 +1,5 @@
 import logging
+import asyncio, anyio
 from typing import List
 from uuid import UUID
 
@@ -34,6 +35,10 @@ async def check_in_tenant(
 @router.get("/tenants", status_code=status.HTTP_200_OK, response_model=List[TenantRead])
 async def get_tenants(db: AsyncSession = Depends(get_db)) -> List[TenantRead]:
     # this should take some query params, sorting and paging params...
+    print("==== app endpoint")
+    print(anyio.get_current_task())
+    print(hex(id(asyncio.get_running_loop())))
+    print(db)
     repo = TenantsRepository(db_session=db)
     items = await repo.find()
     return items
