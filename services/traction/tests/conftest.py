@@ -11,7 +11,11 @@ from api.endpoints.dependencies.db import get_db
 from sqlalchemy.orm import sessionmaker
 
 TestingSessionLocal = sessionmaker(
-    engine, class_=AsyncSession, expire_on_commit=False, autoflush=False
+    engine,
+    class_=AsyncSession,
+    expire_on_commit=False,
+    autoflush=False,
+    autocommit=False,
 )
 
 
@@ -44,10 +48,14 @@ async def client(test_session) -> TestClient:
 # Based on: https://docs.sqlalchemy.org/en/14/orm/session_transaction.html#joining-a-session-into-an-external-transaction-such-as-for-test-suites
 @pytest_asyncio.fixture()
 async def session():
+    print(engine.get_execution_options())
+
     connection = await engine.connect()
     transaction = await connection.begin()
     session = TestingSessionLocal(bind=connection)
-
+    print("==== session fixture")
+    print(anyio.get_current_task())
+    print(hex(id(asyncio.get_running_loop())))
     # Begin a nested transaction (using SAVEPOINT).
     # nested = connection.begin_nested()
 
@@ -77,8 +85,11 @@ async def client(session):
 
     test_app = TestClient(innkeeper_app, backend="asyncio")
     innkeeper_app.dependency_overrides[get_db] = override_get_db
+    print("==== client fixture")
     print(anyio.get_current_task())
     print(hex(id(asyncio.get_running_loop())))
+    print(session)
+    print(test_app)
     yield test_app
 
 

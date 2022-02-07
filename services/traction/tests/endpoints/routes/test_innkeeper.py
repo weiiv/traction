@@ -13,12 +13,15 @@ from fastapi.testclient import TestClient
 async def test_tenants_get_all(client: TestClient, session: AsyncSession) -> None:
     _repo = TenantsRepository(session)
     test_tenant = TenantFactory.build()
+
     print("==== test")
     print(anyio.get_current_task())
     print(hex(id(asyncio.get_running_loop())))
     print(session)
+    print(client)
+
     session.add(test_tenant)
-    # await session.commit()
+    await session.commit()
     # async with AsyncClient(app=client.app, base_url="http://testserver") as ac:
     #     resp = await ac.get("/v1/tenants")
     #     assert resp.ok
