@@ -6,6 +6,7 @@ from pathlib import Path
 import uvicorn
 from fastapi import FastAPI
 
+from api.catalog_main import get_catalogapp
 from api.core.config import settings
 from api.core.exception_handlers import add_exception_handlers
 from api.endpoints.routes.webhooks import get_webhookapp
@@ -50,17 +51,21 @@ app.mount("/innkeeper", innkeeper_app)
 acapy_wrapper_app = get_acapy_wrapper_app()
 app.mount("/tenant_acapy", acapy_wrapper_app)
 
+catalog_app = get_catalogapp()
+app.mount("/catalog", catalog_app)
+
 add_exception_handlers(app)
 add_exception_handlers(webhook_app)
 add_exception_handlers(tenant_app)
 add_exception_handlers(innkeeper_app)
 add_exception_handlers(acapy_wrapper_app)
+add_exception_handlers(catalog_app)
 
 
 @app.on_event("startup")
 async def on_tenant_startup():
     """Register any events we need to respond to."""
-    logger.warn(">>> Starting up app ...")
+    logger.warning(">>> Starting up app ...")
     subscribe_workflow_events()
     subscribe_all_events()
 
@@ -68,7 +73,7 @@ async def on_tenant_startup():
 @app.on_event("shutdown")
 def on_tenant_shutdown():
     """TODO no-op for now."""
-    logger.warn(">>> Sutting down app ...")
+    logger.warning(">>> Shutting down app ...")
     pass
 
 
