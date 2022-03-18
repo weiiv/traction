@@ -9,9 +9,11 @@ from api.db.models.base import BaseModel, BaseTable
 
 class SandboxBase(BaseModel):
     tag: Optional[str] = Field(nullable=True)
+    operation_id: uuid.UUID
 
 
 class Sandbox(SandboxBase, BaseTable, table=True):
+    operation_id: uuid.UUID = Field(default=None, nullable=False)
     lobs: List["Lob"] = Relationship(back_populates="sandbox")  # noqa: F821
     students: List["Student"] = Relationship(back_populates="sandbox")  # noqa: F821
     applicants: List["Applicant"] = Relationship(back_populates="sandbox")  # noqa: F821
@@ -19,6 +21,7 @@ class Sandbox(SandboxBase, BaseTable, table=True):
 
 class SandboxCreate(SandboxBase):
     tag: Optional[str] = None
+    operation_id: Optional[uuid.UUID]
 
 
 class SandboxUpdate(SandboxBase):
@@ -31,3 +34,4 @@ class SandboxRead(SandboxBase):
     created_at: datetime
     updated_at: datetime
     tag: Optional[str] = None
+    operation_id: uuid.UUID

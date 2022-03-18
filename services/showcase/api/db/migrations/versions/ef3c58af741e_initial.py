@@ -40,6 +40,7 @@ def upgrade():
             nullable=False,
         ),
         sa.Column("tag", sqlmodel.sql.sqltypes.AutoString(), nullable=True),
+        sa.Column("operation_id", sqlmodel.sql.sqltypes.GUID(), nullable=False),
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_table(
@@ -107,7 +108,6 @@ def upgrade():
         sa.Column("sandbox_id", sqlmodel.sql.sqltypes.GUID(), nullable=False),
         sa.Column("traction_issue_enabled", sa.Boolean(), nullable=False),
         sa.Column("public_did", sqlmodel.sql.sqltypes.AutoString(), nullable=True),
-        sa.Column("cred_def_id", sqlmodel.sql.sqltypes.AutoString(), nullable=True),
         sa.Column("wallet_id", sqlmodel.sql.sqltypes.GUID(), nullable=False),
         sa.Column("wallet_key", sqlmodel.sql.sqltypes.GUID(), nullable=False),
         sa.ForeignKeyConstraint(

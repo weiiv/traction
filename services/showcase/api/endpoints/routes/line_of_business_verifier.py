@@ -9,7 +9,7 @@ from api.endpoints.dependencies.db import get_db
 from api.db.repositories.line_of_business import LobRepository
 from api.db.repositories.job_applicant import ApplicantRepository
 
-from api.services import traction
+from api.services import traction, sandbox
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -28,20 +28,19 @@ async def request_degree(
     a_repo = ApplicantRepository(db_session=db)
     lob_repo = LobRepository(db_session=db)
 
+    operation = await sandbox.get_operation(sandbox_id)
     applicant = await a_repo.get_by_id_in_sandbox(sandbox_id, applicant_id)
     acme = await lob_repo.get_by_id_with_sandbox(sandbox_id, lob_id)
-    # going to get faber, so we can use their cred def id
-    faber = await lob_repo.get_by_name_with_sandbox(sandbox_id, "Faber")
 
     proof_req = {
         "requested_attributes": [
             {
                 "name": "degree",
-                "restrictions": [{"cred_def_id": faber.cred_def_id}],
+                "restrictions": [{"cred_def_id": operation.data.cred_def_id}],
             },
             {
                 "name": "date",
-                "restrictions": [{"cred_def_id": faber.cred_def_id}],
+                "restrictions": [{"cred_def_id": operation.data.cred_def_id}],
             },
         ],
         "requested_predicates": [
@@ -49,7 +48,7 @@ async def request_degree(
                 "name": "age",
                 "p_type": ">",
                 "p_value": 18,
-                "restrictions": [{"cred_def_id": faber.cred_def_id}],
+                "restrictions": [{"cred_def_id": operation.data.cred_def_id}],
             }
         ],
     }

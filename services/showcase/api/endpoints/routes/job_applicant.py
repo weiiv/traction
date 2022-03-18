@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
     status_code=status.HTTP_200_OK,
     response_model=List[ApplicantRead],
 )
-async def get_students(
+async def get_applicants(
     sandbox_id: UUID,
     db: AsyncSession = Depends(get_db),
 ) -> List[ApplicantRead]:
@@ -33,7 +33,7 @@ async def get_students(
     status_code=status.HTTP_200_OK,
     response_model=ApplicantRead,
 )
-async def get_student(
+async def get_applicant(
     sandbox_id: UUID,
     applicant_id: UUID,
     db: AsyncSession = Depends(get_db),

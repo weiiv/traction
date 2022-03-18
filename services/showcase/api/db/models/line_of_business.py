@@ -14,7 +14,6 @@ class LobBase(BaseModel):
 
     traction_issue_enabled: Optional[bool] = Field(nullable=False)
     public_did: Optional[str] = Field(nullable=True)
-    cred_def_id: Optional[str] = Field(nullable=True)
 
 
 class Lob(LobBase, BaseTable, table=True):

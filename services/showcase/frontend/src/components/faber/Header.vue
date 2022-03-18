@@ -1,7 +1,7 @@
 <template>
   <v-row>
     <v-col cols="6">
-      <div v-if="tenant.cred_def_id">
+      <div v-if="tenant.public_did">
         <v-icon color="success">check_circle_outline</v-icon> Faber University
         is an Issuer
       </div>

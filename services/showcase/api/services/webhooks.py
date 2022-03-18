@@ -10,7 +10,7 @@ from api.db.models.line_of_business import LobUpdate
 from api.db.repositories import LobRepository, StudentRepository
 from api.db.repositories.job_applicant import ApplicantRepository
 from api.services.websockets import notifier
-from api.services import traction
+from api.services import traction, sandbox
 
 logger = logging.getLogger(__name__)
 
@@ -69,7 +69,7 @@ async def handle_issuer(lob: Lob, payload: dict, db: AsyncSession):
             )
         )
         schema = {
-            "schema_name": "degree schema",
+            "schema_name": "Degree",
             "schema_version": version,
             "attributes": ["student_id", "name", "date", "degree", "age"],
         }
@@ -81,6 +81,9 @@ async def handle_issuer(lob: Lob, payload: dict, db: AsyncSession):
             cred_def_tag=tag,
         )
         logger.info(f"create schema/cred def resp={resp}")
+        await sandbox.update_operation_schema_name(
+            lob.sandbox_id, schema["schema_name"], db
+        )
     return True
 
 
@@ -94,13 +97,9 @@ async def handle_schema(lob: Lob, payload: dict, db: AsyncSession):
     # 'cred_def_tag': 'demo_002'
     # }
     if payload["status"] == "completed" and payload["cred_def_state"] == "completed":
-        cred_def_id = payload["cred_def_id"]
-        repo = LobRepository(db_session=db)
-        lob.cred_def_id = cred_def_id
-        upd = LobUpdate(
-            **lob.dict(),
+        await sandbox.update_operation_cred_def_id(
+            lob.sandbox_id, payload["schema_id"], payload["cred_def_id"], db
         )
-        await repo.update(upd)
 
     return True
 

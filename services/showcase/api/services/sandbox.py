@@ -1,6 +1,7 @@
+import json
 import uuid
-import datetime
-from typing import Optional
+from datetime import datetime
+from typing import Optional, List
 
 import pydantic
 from fastapi import HTTPException
@@ -23,6 +24,7 @@ from api.db.repositories.job_applicant import ApplicantRepository
 from api.db.repositories.out_of_band import OutOfBandRepository
 
 from api.services import traction
+from api.services.websockets import notifier
 
 
 class CheckInResponse(pydantic.BaseModel):
@@ -31,6 +33,28 @@ class CheckInResponse(pydantic.BaseModel):
     wallet_id: uuid.UUID
     wallet_key: uuid.UUID
     webhook_url: Optional[str] = None
+
+
+class OperationData(pydantic.BaseModel):
+    schema_name: Optional[str] = None
+    schema_id: Optional[str] = None
+    cred_def_id: Optional[str] = None
+
+
+class OperationRead(pydantic.BaseModel):
+    id: uuid.UUID
+    name: str
+    tags: Optional[List[str]] = None
+    data: Optional[OperationData] = None
+    created_at: datetime
+    updated_at: datetime
+
+
+class OperationUpdate(pydantic.BaseModel):
+    id: str
+    name: str
+    tags: Optional[List[str]] = None
+    data: Optional[OperationData] = None
 
 
 class InviteStudentRequest(pydantic.BaseModel):
@@ -77,12 +101,24 @@ async def create_new_sandbox(
     lobs_repo = LobRepository(db_session=db)
     applicant_repo = ApplicantRepository(db_session=db)
     student_repo = StudentRepository(db_session=db)
+
+    operation = await create_operation(tag=payload.tag)
+    payload.operation_id = operation.id
+
     sandbox = await sandbox_repo.create(payload)
+    await notifier.push(
+        {
+            "topic": "create_new_sandbox",
+            "payload": {},
+            "lob": {},
+            "message": f"Creating new sandbox with tag {payload.tag}...",
+        }
+    )
 
     # create traction tenants for our lobs
     alice = await create_new_line_of_business(sandbox, lobs_repo, "Alice", issuer=False)
-    await create_new_line_of_business(sandbox, lobs_repo, "Faber", issuer=True)
-    await create_new_line_of_business(sandbox, lobs_repo, "Acme", issuer=False)
+    faber = await create_new_line_of_business(sandbox, lobs_repo, "Faber", issuer=True)
+    acme = await create_new_line_of_business(sandbox, lobs_repo, "Acme", issuer=False)
 
     # build data set for this sandbox
 
@@ -96,7 +132,7 @@ async def create_new_sandbox(
         age=24,
         degree="Maths",
         student_id="AS1234567",
-        date=datetime.datetime(2021, 6, 24),
+        date=datetime(2021, 6, 24),
     )
     await student_repo.create(student)
 
@@ -115,6 +151,14 @@ async def create_new_sandbox(
     await applicant_repo.create(applicant)
 
     # make 5 random students
+    await notifier.push(
+        {
+            "topic": "create_new_sandbox",
+            "payload": {},
+            "lob": {},
+            "message": f"Creating students for {faber.name}...",
+        }
+    )
     rand_students = StudentCreateFactory.batch(5, sandbox_id=sandbox.id)
     for s in rand_students:
         if s.name == "Alice Smith":
@@ -122,12 +166,28 @@ async def create_new_sandbox(
         await student_repo.create(s)
 
     # make 5 random job applicants
+    await notifier.push(
+        {
+            "topic": "create_new_sandbox",
+            "payload": {},
+            "lob": {},
+            "message": f"Creating job applicants for {acme.name}...",
+        }
+    )
     rand_applicants = ApplicantCreateFactory.batch(5, sandbox_id=sandbox.id)
     for s in rand_applicants:
         if s.name == "Alice Smith":
             continue
         await applicant_repo.create(s)
 
+    await notifier.push(
+        {
+            "topic": "create_new_sandbox",
+            "payload": {},
+            "lob": {},
+            "message": f"Sandbox with tag {payload.tag} created.",
+        }
+    )
     return await sandbox_repo.get_by_id_populated(sandbox.id)
 
 
@@ -151,11 +211,28 @@ async def get_line_of_business(sandbox, lob_id, db) -> Lob:
 async def create_new_line_of_business(
     sandbox: Sandbox, repo: LobRepository, name: str, issuer: bool = False
 ):
+    lob_name = name.capitalize()
+    await notifier.push(
+        {
+            "topic": "create_new_line_of_business",
+            "payload": {},
+            "lob": {},
+            "message": f"Register {lob_name} in traction...",
+        }
+    )
     # create tenant in traction, then we use their wallet id and key
     resp = await traction.create_tenant(name=f"{name.lower()}-{str(sandbox.id)[0:7]}")
     traction_tenant = CheckInResponse(**resp)
 
     # create our lob in db
+    await notifier.push(
+        {
+            "topic": "create_new_line_of_business",
+            "payload": {},
+            "lob": {},
+            "message": f"Create {lob_name} in Showcase...",
+        }
+    )
     new_lob = LobCreate(
         name=name.capitalize(),
         wallet_id=traction_tenant.wallet_id,
@@ -166,13 +243,37 @@ async def create_new_line_of_business(
     )
     lob = await repo.create(new_lob)
 
+    await notifier.push(
+        {
+            "topic": "create_new_line_of_business",
+            "payload": {},
+            "lob": {},
+            "message": f"Create {lob_name} webhook in Traction...",
+        }
+    )
     resp = await traction.create_tenant_webhook(lob)
     read = TenantWebhookRead(**resp)
     lob.webhook_url = read.webhook_url
 
     if issuer:
+        await notifier.push(
+            {
+                "topic": "create_new_line_of_business",
+                "payload": {},
+                "lob": {},
+                "message": f"Make {lob_name} an issuer in Traction...",
+            }
+        )
         await traction.innkeeper_make_issuer(traction_tenant.id)
 
+    await notifier.push(
+        {
+            "topic": "create_new_line_of_business",
+            "payload": {},
+            "lob": {},
+            "message": f"{lob_name} created.",
+        }
+    )
     return await repo.update(lob)
 
 
@@ -346,3 +447,44 @@ async def promote_lob_to_issuer(
     await traction.tenant_admin_issuer(lob.wallet_id, lob.wallet_key, {})
 
     return
+
+
+async def create_operation(tag: str):
+    resp = await traction.create_operation(tag)
+    read = OperationRead(**resp)
+    return read
+
+
+async def get_operation(sandbox_id: uuid.UUID, db: AsyncSession):
+    sandbox = await get_sandbox(sandbox_id, db)
+    resp = await traction.get_operation(sandbox.operation_id)
+    read = OperationRead(**resp)
+    return read
+
+
+async def update_operation_schema_name(
+    sandbox_id: uuid.UUID,
+    schema_name: str,
+    db: AsyncSession,
+):
+    # update in traction
+    sandbox = await get_sandbox(sandbox_id, db)
+    resp = await traction.get_operation(sandbox.operation_id)
+    upd = OperationUpdate(**resp)
+    upd.data.schema_name = schema_name
+    await traction.update_operation(upd.dict())
+
+
+async def update_operation_cred_def_id(
+    sandbox_id: uuid.UUID,
+    schema_id: str,
+    cred_def_id: str,
+    db: AsyncSession,
+):
+    # update in traction
+    sandbox = await get_sandbox(sandbox_id, db)
+    resp = await traction.get_operation(sandbox.operation_id)
+    upd = OperationUpdate(**resp)
+    upd.data.schema_id = schema_id
+    upd.data.cred_def_id = cred_def_id
+    await traction.update_operation(upd.dict())

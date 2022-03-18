@@ -10,11 +10,16 @@ R_INN_V1 = f"{R_INN}/v1"
 R_TNT = f"{R}/tenant"
 R_TNT_V1 = f"{R_TNT}/v1"
 
+R_CAT = f"{R}/catalog"
+R_CAT_V1 = f"{R_CAT}/v1"
+
 # INNKEEPER
 INNKEEPER_TOKEN = f"{R_INN}/token"
 INNKEEPER_CHECKIN = f"{R_INN_V1}/check-in"
 INNKEEPER_MAKE_ISSUER = f"{R_INN_V1}/issuers"
 
+# CATALOG / OPERATIONS
+CATALOG_OPERATIONS = f"{R_CAT_V1}/operations"
 
 # TENANT
 TENANT_TOKEN = f"{R_TNT}/token"

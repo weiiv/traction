@@ -32,8 +32,7 @@
                     Wallet ID: {{ lob.wallet_id }} <br />
                     Wallet Key: {{ lob.wallet_key }} <br />
                     Traction Issue Enabled: {{ lob.traction_issue_enabled }} <br />
-                    Public DID: {{ lob.public_did }} <br />
-                    Cred. Def ID: {{ lob.cred_def_id }}
+                    Public DID: {{ lob.public_did }}
                     <br />
                   </p>
                 </v-col>

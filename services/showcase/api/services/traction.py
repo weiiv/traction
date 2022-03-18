@@ -1,5 +1,6 @@
 import json
 import logging
+import uuid
 from typing import Optional, List
 from uuid import UUID
 from enum import Enum
@@ -16,6 +17,11 @@ from api.db.models.base import BaseSchema
 from api.services import traction_urls as t_urls
 
 logger = logging.getLogger(__name__)
+
+
+def uuid_convert(o):
+    if isinstance(o, UUID):
+        return str(o)
 
 
 class ARIES_PROTOCOL_ROLES(str, Enum):
@@ -684,6 +690,77 @@ async def tenant_accept_cred_offer(
                 return resp
             except ContentTypeError:
                 logger.exception("Error accepting credential", exc_info=True)
+                text = await response.text()
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=text,
+                )
+
+
+# OPERATIONS
+
+
+async def create_operation(
+    tag: str,
+):
+    # just leaving this public for now...
+    data = {"name": tag, "tags": [tag], "data": {}}
+    async with ClientSession() as client_session:
+        async with await client_session.post(
+            url=t_urls.CATALOG_OPERATIONS, json=data
+        ) as response:
+            try:
+                resp = await response.json()
+                return resp
+            except ContentTypeError:
+                logger.exception("Error creating operation", exc_info=True)
+                text = await response.text()
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=text,
+                )
+
+
+async def update_operation(
+    operation: dict
+):
+    operation_id = operation["id"]
+    data = operation
+    url = f"{t_urls.CATALOG_OPERATIONS}/{operation_id}"
+    async with ClientSession() as client_session:
+        async with await client_session.put(
+            url=url,
+            json=data,
+            headers={"accept": "application/json", "Content-Type": "application/json"},
+        ) as response:
+            try:
+                resp = await response.json()
+                return resp
+            except ContentTypeError:
+                logger.exception("Error updating operation", exc_info=True)
+                text = await response.text()
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=text,
+                )
+
+
+async def get_operation(
+    operation_id: uuid.UUID,
+):
+    # just leaving this public for now...
+    data = {}
+    params = {}
+    url = f"{t_urls.CATALOG_OPERATIONS}/{str(operation_id)}"
+    async with ClientSession() as client_session:
+        async with await client_session.get(
+            url=url, params=params, json=data
+        ) as response:
+            try:
+                resp = await response.json()
+                return resp
+            except ContentTypeError:
+                logger.exception("Error getting operation", exc_info=True)
                 text = await response.text()
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
