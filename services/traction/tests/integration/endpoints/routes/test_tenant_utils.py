@@ -394,6 +394,7 @@ async def request_credential_presentation(
     assert 1 == len(pres_data)
     presentation = json.loads(pres_data[0]["presentation"]["presentation"])
     verified = "true" if will_validate else "false"
+    print(">>> received presentation:", pres_data[0]["presentation"])
     assert verified == presentation["verified"], recd_pres.content
 
     return pres_req_workflow_id, holder_workflow_id

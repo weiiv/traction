@@ -3,6 +3,7 @@ import json
 from typing import List
 import asyncio
 import time
+from copy import deepcopy
 
 from httpx import AsyncClient, ReadTimeout
 from pydantic import parse_obj_as
@@ -133,17 +134,39 @@ async def test_tenants_issue_cred_req_proof_revoke(
         # pause to ensure we get a clean non-revoc interval
         await asyncio.sleep(2)
         revoc = {"to": int(time.time())}
-        proof_req["requested_attributes"][0]["non_revoked"] = revoc
-        proof_req["requested_predicates"][0]["non_revoked"] = revoc
-        proof_req["non_revoked"] = revoc
-    await request_credential_presentation(
-        app_client,
-        t1_headers,
-        "alice",
-        t2_headers,
-        proof_req,
-        will_validate=True,
-    )
+        proof_req_revoc = deepcopy(proof_req)
+        # try a few variations of non-revocation proof
+        proof_req_revoc["requested_attributes"][0]["non_revoked"] = revoc
+        proof_req_revoc["requested_predicates"][0]["non_revoked"] = revoc
+        proof_req_revoc["non_revoked"] = revoc
+        await request_credential_presentation(
+            app_client,
+            t1_headers,
+            "alice",
+            t2_headers,
+            proof_req_revoc,
+            will_validate=True,
+        )
+        # one more variation ...
+        proof_req_revoc = deepcopy(proof_req)
+        proof_req_revoc["non_revoked"] = revoc
+        await request_credential_presentation(
+            app_client,
+            t1_headers,
+            "alice",
+            t2_headers,
+            proof_req_revoc,
+            will_validate=True,
+        )
+    else:
+        await request_credential_presentation(
+            app_client,
+            t1_headers,
+            "alice",
+            t2_headers,
+            proof_req,
+            will_validate=True,
+        )
 
     await asyncio.sleep(2)
 
@@ -162,16 +185,37 @@ async def test_tenants_issue_cred_req_proof_revoke(
         # pause to ensure we get a clean non-revoc interval
         await asyncio.sleep(5)
         revoc = {"to": int(time.time())}
-        proof_req["requested_attributes"][0]["non_revoked"] = revoc
-        proof_req["requested_predicates"][0]["non_revoked"] = revoc
-        proof_req["non_revoked"] = revoc
-
-    # proof should still be valid (unless we're checking non-revocation)
-    await request_credential_presentation(
-        app_client,
-        t1_headers,
-        "alice",
-        t2_headers,
-        proof_req,
-        will_validate=(not prove_non_revocation),
-    )
+        proof_req_revoc = deepcopy(proof_req)
+        # try a few variations of non-revocation proof
+        proof_req_revoc["requested_attributes"][0]["non_revoked"] = revoc
+        proof_req_revoc["requested_predicates"][0]["non_revoked"] = revoc
+        proof_req_revoc["non_revoked"] = revoc
+        await request_credential_presentation(
+            app_client,
+            t1_headers,
+            "alice",
+            t2_headers,
+            proof_req_revoc,
+            will_validate=False,
+        )
+        # one more variation ...
+        proof_req_revoc = deepcopy(proof_req)
+        proof_req_revoc["non_revoked"] = revoc
+        await request_credential_presentation(
+            app_client,
+            t1_headers,
+            "alice",
+            t2_headers,
+            proof_req_revoc,
+            will_validate=False,
+        )
+    else:
+        # proof should still be valid (unless we're checking non-revocation)
+        await request_credential_presentation(
+            app_client,
+            t1_headers,
+            "alice",
+            t2_headers,
+            proof_req,
+            will_validate=True,
+        )
