@@ -15,3 +15,14 @@ def step_impl(context, tenant: str):
     resp_json = json.loads(response.content)
     # wait for ensdorser signatures and ledger writes
     time.sleep(2)
+
+
+@given('{tenant}" is an issuer')
+def step_impl(context, tenant: str):
+    context.execute_steps(
+        f"""
+        When "{tenant}" is allowed to be an issuer by the innkeeper
+        And "{tenant}" registers as an issuer
+        Then "{tenant}" will have a public did
+    """
+    )
